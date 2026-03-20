@@ -1,0 +1,83 @@
+{
+  "$schema": "https://raw.githubusercontent.com/anthropics/claude-code/main/schema.json",
+  "_comment": "Antigravity AI configuration — mirrors Claude Code hooks for Gemini-based workflows",
+  "env": {
+    "ECC_MODE": "standard",
+    "CLAUDE_PLUGIN_ROOT": "${HOME}/Developer/Projects/everything-claude-code"
+  },
+  "workflows": {
+    "web_app": {
+      "description": "Build a web application with React/Next.js/TypeScript",
+      "steps": [
+        "Use /plan to create implementation plan",
+        "Use /tdd for test-driven development",
+        "Use /verify to validate changes",
+        "Use /code-review before merging"
+      ]
+    },
+    "mobile_ios": {
+      "description": "Build an iOS app with Swift/SwiftUI",
+      "steps": [
+        "Use /plan to design architecture",
+        "Reference swift-concurrency-6-2 skill",
+        "Reference swiftui-patterns skill",
+        "Reference liquid-glass-design for iOS 26",
+        "Use /verify to validate"
+      ]
+    },
+    "mobile_android": {
+      "description": "Build an Android app with Kotlin/Jetpack Compose",
+      "steps": [
+        "Use /plan to design architecture",
+        "Reference compose-multiplatform-patterns skill if applicable",
+        "Use /tdd for test-driven development",
+        "Use /verify to validate"
+      ]
+    },
+    "ai_agent": {
+      "description": "Build or orchestrate AI agent workflows",
+      "steps": [
+        "Reference agentic-engineering skill",
+        "Reference autonomous-loops for loop patterns",
+        "Use /multi-plan for multi-agent decomposition",
+        "Use /multi-execute for orchestrated workflows",
+        "Reference cost-aware-llm-pipeline for optimization"
+      ]
+    }
+  },
+  "skills_reference": {
+    "ai_core": [
+      "agentic-engineering",
+      "ai-first-engineering",
+      "autonomous-loops",
+      "continuous-learning-v2",
+      "cost-aware-llm-pipeline",
+      "prompt-optimizer",
+      "eval-harness",
+      "verification-loop"
+    ],
+    "ai_research": [
+      "deep-research",
+      "search-first",
+      "exa-search",
+      "iterative-retrieval",
+      "market-research"
+    ],
+    "ai_infrastructure": [
+      "claude-api",
+      "claude-devfleet",
+      "mcp-server-patterns",
+      "enterprise-agent-ops",
+      "agent-harness-construction",
+      "continuous-agent-loop",
+      "context-budget",
+      "data-scraper-agent"
+    ],
+    "ai_quality": [
+      "agent-eval",
+      "ai-regression-testing",
+      "regex-vs-llm-structured-text",
+      "nanoclaw-repl"
+    ]
+  }
+}
