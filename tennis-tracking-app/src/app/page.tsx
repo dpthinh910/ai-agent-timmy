@@ -9,6 +9,7 @@ import { MembersView } from '@/components/views/members-view';
 import { SessionView } from '@/components/views/session-view';
 import { LedgerView } from '@/components/views/ledger-view';
 import { GearView } from '@/components/views/gear-view';
+import { SettingsView } from '@/components/views/settings-view';
 
 function AppContent() {
   const [activeTab] = useAtom(activeTabAtom);
@@ -21,6 +22,7 @@ function AppContent() {
         {activeTab === 'session' && <SessionView />}
         {activeTab === 'ledger' && <LedgerView />}
         {activeTab === 'gear' && <GearView />}
+        {activeTab === 'settings' && <SettingsView />}
       </main>
       <BottomNav />
     </>

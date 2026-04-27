@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useAtom } from 'jotai';
-import { activeTabAtom, ledgerRefreshAtom, sessionsRefreshAtom } from '@/store/atoms';
+import { activeTabAtom, ledgerRefreshAtom, sessionsRefreshAtom, settingsRefreshAtom } from '@/store/atoms';
 import { getAllLedgerEntries, getAllSessions } from '@/db/client';
 import {
   formatVND,
@@ -14,10 +14,10 @@ import {
   getCompletedSessionsInMonth,
   isSessionDay,
   getNextSessionDayLabel,
-  MONTHLY_COSTS,
-  TOTAL_MONTHLY_FIXED,
+  getTotalMonthlyCost,
   getPerSessionCost,
 } from '@/lib/finance';
+import { getSettings } from '@/lib/settings';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -39,6 +39,7 @@ export function DashboardView() {
   const [, setActiveTab] = useAtom(activeTabAtom);
   const [ledgerRefresh] = useAtom(ledgerRefreshAtom);
   const [sessionsRefresh] = useAtom(sessionsRefreshAtom);
+  const [settingsRefresh] = useAtom(settingsRefreshAtom);
   const [entries, setEntries] = useState<LedgerEntry[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [mounted, setMounted] = useState(false);
@@ -51,7 +52,7 @@ export function DashboardView() {
   useEffect(() => {
     setMounted(true);
     loadData();
-  }, [loadData, ledgerRefresh, sessionsRefresh]);
+  }, [loadData, ledgerRefresh, sessionsRefresh, settingsRefresh]);
 
   if (!mounted) return null;
 
@@ -195,25 +196,36 @@ export function DashboardView() {
             <span className="text-xs font-medium text-muted-foreground">Monthly Fixed Costs</span>
             <span className="text-[10px] text-muted-foreground ml-auto">{monthName}</span>
           </div>
-          <div className="space-y-2 text-xs">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Court rental</span>
-              <span className="font-medium">{formatVND(MONTHLY_COSTS.COURT_RENTAL)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Tennis balls</span>
-              <span className="font-medium">{formatVND(MONTHLY_COSTS.BALL_BUDGET)}</span>
-            </div>
-            <div className="h-px bg-border/50 my-1" />
-            <div className="flex justify-between font-semibold">
-              <span>Total monthly</span>
-              <span className="text-amber-500">{formatVND(TOTAL_MONTHLY_FIXED)}</span>
-            </div>
-            <div className="flex justify-between text-muted-foreground">
-              <span>÷ {expectedSessions} sessions</span>
-              <span className="text-foreground font-medium">{formatVND(perSessionCost)} / session</span>
-            </div>
-          </div>
+          {(() => {
+            const s = getSettings();
+            const totalMonthly = getTotalMonthlyCost(now.getFullYear(), now.getMonth(), s);
+            const totalTips = s.tipPerBallKid * s.defaultBallKidCount * expectedSessions;
+            return (
+              <div className="space-y-2 text-xs">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Court rental</span>
+                  <span className="font-medium">{formatVND(s.courtRentalMonthly)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Tennis balls</span>
+                  <span className="font-medium">{formatVND(s.ballBudgetMonthly)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Ball kid tips ({expectedSessions}×{s.defaultBallKidCount}×{formatVND(s.tipPerBallKid)})</span>
+                  <span className="font-medium">{formatVND(totalTips)}</span>
+                </div>
+                <div className="h-px bg-border/50 my-1" />
+                <div className="flex justify-between font-semibold">
+                  <span>Total monthly</span>
+                  <span className="text-amber-500">{formatVND(totalMonthly)}</span>
+                </div>
+                <div className="flex justify-between text-muted-foreground">
+                  <span>÷ {expectedSessions} sessions</span>
+                  <span className="text-foreground font-medium">{formatVND(perSessionCost)} / session</span>
+                </div>
+              </div>
+            );
+          })()}
         </CardContent>
       </Card>
 

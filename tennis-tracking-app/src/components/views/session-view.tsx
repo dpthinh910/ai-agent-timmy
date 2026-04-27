@@ -17,6 +17,7 @@ import {
   getLedgerBySession,
 } from '@/db/client';
 import { formatVND, AMOUNTS, getPerSessionCost, getPerPersonCost } from '@/lib/finance';
+import { getSettings } from '@/lib/settings';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -48,6 +49,7 @@ export function SessionView() {
   const [courtFee, setCourtFee] = useState('');
   const [tipAmount, setTipAmount] = useState('');
   const [ballKidName, setBallKidName] = useState('');
+  const [ballKidCount, setBallKidCount] = useState(2);
   const [guestName, setGuestName] = useState('');
   const [selectedMember, setSelectedMember] = useState<number | null>(null);
   const [fineDialog, setFineDialog] = useState(false);
@@ -100,7 +102,12 @@ export function SessionView() {
 
   /** User clicks "End" → open the end-session dialog (tip prompt) */
   const handleRequestEnd = () => {
-    setTipAmount('');
+    const s = getSettings();
+    // Pre-fill with configured tip amount × ball kid count
+    const defaultCount = s.defaultBallKidCount;
+    const defaultTotal = s.tipPerBallKid * defaultCount;
+    setTipAmount(defaultTotal.toString());
+    setBallKidCount(defaultCount);
     setBallKidName('');
     setEndDialog(true);
   };
@@ -446,11 +453,11 @@ export function SessionView() {
           </DialogHeader>
           <div className="space-y-4 pt-2">
             <p className="text-sm text-muted-foreground">
-              Would you like to tip the ball kid before ending the session?
+              Tip the ball kids before ending the session.
             </p>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Ball Kid Name</label>
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Ball Kid Name(s)</label>
               <Input
                 placeholder="e.g. Tú, Hùng..."
                 value={ballKidName}
@@ -459,17 +466,55 @@ export function SessionView() {
               />
             </div>
 
+            {/* Ball kid count stepper */}
             <div className="space-y-2">
-              <label className="text-sm font-medium">Tip Amount (VND)</label>
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Number of Ball Kids</label>
+              <div className="flex items-center gap-3">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-9 w-9 p-0"
+                  onClick={() => {
+                    const newCount = Math.max(1, ballKidCount - 1);
+                    setBallKidCount(newCount);
+                    setTipAmount((getSettings().tipPerBallKid * newCount).toString());
+                  }}
+                >
+                  −
+                </Button>
+                <span className="text-lg font-bold w-8 text-center">{ballKidCount}</span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-9 w-9 p-0"
+                  onClick={() => {
+                    const newCount = ballKidCount + 1;
+                    setBallKidCount(newCount);
+                    setTipAmount((getSettings().tipPerBallKid * newCount).toString());
+                  }}
+                >
+                  +
+                </Button>
+                <span className="text-xs text-muted-foreground ml-1">
+                  × {formatVND(getSettings().tipPerBallKid)} each
+                </span>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Total Tip (VND)</label>
               <Input
                 type="number"
-                placeholder="e.g. 50000"
+                placeholder="e.g. 100000"
                 value={tipAmount}
                 onChange={e => setTipAmount(e.target.value)}
               />
+              <p className="text-[10px] text-muted-foreground">
+                Pre-filled: {ballKidCount} kids × {formatVND(getSettings().tipPerBallKid)} = {formatVND(getSettings().tipPerBallKid * ballKidCount)}. You can adjust.
+              </p>
             </div>
 
-            {/* Session summary before ending */}
+            {/* Session summary */}
             <div className="rounded-lg border border-border/30 bg-background/50 p-3 space-y-1.5 text-xs">
               <div className="flex justify-between text-muted-foreground">
                 <span>Attendees</span>

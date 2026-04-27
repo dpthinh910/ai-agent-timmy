@@ -27,10 +27,11 @@ export const membersRefreshAtom = atom(0);
 export const ledgerRefreshAtom = atom(0);
 export const sessionsRefreshAtom = atom(0);
 export const equipmentRefreshAtom = atom(0);
+export const settingsRefreshAtom = atom(0);
 
 // ============ UI STATE ============
 
-export const activeTabAtom = atom<'home' | 'members' | 'session' | 'ledger' | 'gear'>('home');
+export const activeTabAtom = atom<'home' | 'members' | 'session' | 'ledger' | 'gear' | 'settings'>('home');
 
 // ============ FILTER STATE ============
 

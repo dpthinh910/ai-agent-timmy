@@ -1,4 +1,5 @@
 import type { LedgerEntry, Session } from '@/db/schema';
+import { getSettings, type ClubSettings } from '@/lib/settings';
 
 /**
  * Format VND amount with thousand separators
@@ -57,38 +58,6 @@ export const AMOUNTS = {
   GUEST_FEE: 100_000,      // 100,000 VND
 } as const;
 
-// ============ MONTHLY FIXED COSTS ============
-
-/**
- * Monthly fixed costs for the tennis club.
- * These are split across all sessions in the month.
- * Reference: May 2025 = 14,040,000₫ court + 3,000,000₫ balls
- */
-export const MONTHLY_COSTS = {
-  COURT_RENTAL: 14_040_000,   // Monthly court rental (VND)
-  BALL_BUDGET:   3_000_000,   // Monthly tennis ball expense (VND)
-} as const;
-
-export const TOTAL_MONTHLY_FIXED = MONTHLY_COSTS.COURT_RENTAL + MONTHLY_COSTS.BALL_BUDGET;
-
-/**
- * Calculate the per-session cost for a given month.
- * Splits total monthly fixed costs evenly across all expected Mon/Wed/Fri sessions.
- */
-export function getPerSessionCost(year: number, month: number): number {
-  const expected = getExpectedSessionsInMonth(year, month);
-  if (expected === 0) return 0;
-  return Math.round(TOTAL_MONTHLY_FIXED / expected);
-}
-
-/**
- * Calculate the per-person cost for a single session given the number of attendees.
- */
-export function getPerPersonCost(year: number, month: number, attendees: number): number {
-  if (attendees === 0) return 0;
-  return Math.round(getPerSessionCost(year, month) / attendees);
-}
-
 // ============ SESSION SCHEDULE (Mon / Wed / Fri) ============
 
 /** Days of the week when sessions are scheduled (1=Mon, 3=Wed, 5=Fri) */
@@ -98,12 +67,10 @@ const SESSION_DAYS = [1, 3, 5] as const;
  * Count how many Mon/Wed/Fri days exist in a given month.
  */
 export function getExpectedSessionsInMonth(year: number, month: number): number {
-  // month is 0-indexed (Jan = 0)
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   let count = 0;
   for (let d = 1; d <= daysInMonth; d++) {
     const dow = new Date(year, month, d).getDay();
-    // getDay(): 0=Sun, 1=Mon, ..., 5=Fri
     if (SESSION_DAYS.includes(dow as 1 | 3 | 5)) count++;
   }
   return count;
@@ -130,17 +97,62 @@ export function isSessionDay(date: Date = new Date()): boolean {
 
 /**
  * Get the name of the next session day relative to today.
- * Returns e.g. "Monday", "Wednesday", "Friday", or "Today" if today is a session day.
  */
 export function getNextSessionDayLabel(date: Date = new Date()): string {
   const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   const dow = date.getDay();
   if (SESSION_DAYS.includes(dow as 1 | 3 | 5)) return 'Today';
-  // Walk forward until we find the next session day
   for (let offset = 1; offset <= 7; offset++) {
     const next = (dow + offset) % 7;
     if (SESSION_DAYS.includes(next as 1 | 3 | 5)) return dayNames[next];
   }
-  return dayNames[1]; // fallback — Monday
+  return dayNames[1];
 }
 
+// ============ DYNAMIC COST CALCULATIONS (from Settings) ============
+
+/**
+ * Get total monthly fixed costs from settings.
+ * Includes: court rental + ball budget + (tip × ball kids × sessions).
+ */
+export function getTotalMonthlyCost(year: number, month: number, settings?: ClubSettings): number {
+  const s = settings ?? getSettings();
+  const sessions = getExpectedSessionsInMonth(year, month);
+  const totalTips = s.tipPerBallKid * s.defaultBallKidCount * sessions;
+  return s.courtRentalMonthly + s.ballBudgetMonthly + totalTips;
+}
+
+/**
+ * Calculate the per-session cost for a given month.
+ */
+export function getPerSessionCost(year: number, month: number, settings?: ClubSettings): number {
+  const s = settings ?? getSettings();
+  const expected = getExpectedSessionsInMonth(year, month);
+  if (expected === 0) return 0;
+  return Math.round(getTotalMonthlyCost(year, month, s) / expected);
+}
+
+/**
+ * Calculate the per-person cost for a single session.
+ */
+export function getPerPersonCost(year: number, month: number, attendees: number, settings?: ClubSettings): number {
+  if (attendees === 0) return 0;
+  return Math.round(getPerSessionCost(year, month, settings) / attendees);
+}
+
+/**
+ * Calculate suggested monthly dues per member.
+ * Total monthly cost ÷ active members (rounded up to nearest 10k).
+ */
+export function getSuggestedDuesPerPerson(
+  year: number,
+  month: number,
+  activeMembers: number,
+  settings?: ClubSettings,
+): number {
+  if (activeMembers === 0) return 0;
+  const total = getTotalMonthlyCost(year, month, settings);
+  const raw = total / activeMembers;
+  // Round up to nearest 10,000₫
+  return Math.ceil(raw / 10_000) * 10_000;
+}
