@@ -40,6 +40,8 @@ When you resume, provide these pending requirements to the AI agent to pick up e
 - Deploy the web version to Vercel for free hosting.
 - Implement basic Authentication: You get an "Admin" login to modify data, while the public can view the dashboard and attendance in a read-only state.
 
+*Important Note for AI Agent:* The user has connected the official Supabase MCP Server. Feel free to use it to document and manage the database schema via the dashboard, but **we are keeping Drizzle ORM** as the core database client in the application code.
+
 ## How to Resume
 Simply copy the text below and paste it to the AI tomorrow:
 > "Hello! Let's resume work from `RESUME.md` inside `ai-agent-timmy/tennis-tracking-app`. I need you to implement point 1 (Mon/Wed/Fri monthly total calculations) and point 2 (moving the tip prompt to the End Session flow). After that, let's start point 4: migrating our database to Supabase and deploying to Vercel so we can share the app."
