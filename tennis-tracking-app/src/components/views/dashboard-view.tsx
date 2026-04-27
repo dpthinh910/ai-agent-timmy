@@ -4,7 +4,17 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAtom } from 'jotai';
 import { activeTabAtom, ledgerRefreshAtom, sessionsRefreshAtom } from '@/store/atoms';
 import { getAllLedgerEntries, getAllSessions } from '@/db/client';
-import { formatVND, calculateIncome, calculateExpenses, calculateBalance, getCurrentMonthEntries } from '@/lib/finance';
+import {
+  formatVND,
+  calculateIncome,
+  calculateExpenses,
+  calculateBalance,
+  getCurrentMonthEntries,
+  getExpectedSessionsInMonth,
+  getCompletedSessionsInMonth,
+  isSessionDay,
+  getNextSessionDayLabel,
+} from '@/lib/finance';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -17,6 +27,7 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   Activity,
+  CalendarDays,
 } from 'lucide-react';
 import type { LedgerEntry, Session } from '@/db/schema';
 
@@ -40,6 +51,7 @@ export function DashboardView() {
 
   if (!mounted) return null;
 
+  const now = new Date();
   const monthEntries = getCurrentMonthEntries(entries);
   const income = calculateIncome(monthEntries);
   const expenses = calculateExpenses(monthEntries);
@@ -47,6 +59,16 @@ export function DashboardView() {
   const totalBalance = calculateBalance(entries);
   const recentEntries = entries.slice(0, 5);
   const lastSession = sessions[0];
+
+  // Monthly session schedule
+  const expectedSessions = getExpectedSessionsInMonth(now.getFullYear(), now.getMonth());
+  const completedSessions = getCompletedSessionsInMonth(sessions, now.getFullYear(), now.getMonth());
+  const sessionProgress = expectedSessions > 0 ? (completedSessions / expectedSessions) * 100 : 0;
+  const sessionDayToday = isSessionDay(now);
+  const nextDayLabel = getNextSessionDayLabel(now);
+  const avgCostPerSession = completedSessions > 0 ? Math.round(expenses / completedSessions) : 0;
+
+  const monthName = now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
   const typeColors: Record<string, string> = {
     FINE: 'bg-amber-500/10 text-amber-500 border-amber-500/20',
@@ -67,7 +89,12 @@ export function DashboardView() {
           Tennis
         </h1>
         <p className="text-sm text-muted-foreground">
-          {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+          {now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+          {sessionDayToday && (
+            <Badge variant="outline" className="ml-2 text-[10px] px-1.5 py-0 bg-emerald-500/10 text-emerald-500 border-emerald-500/20">
+              Session Day 🎾
+            </Badge>
+          )}
         </p>
       </div>
 
@@ -79,6 +106,79 @@ export function DashboardView() {
         <PlayCircle className="h-5 w-5 mr-2" />
         {lastSession?.isActive ? 'Continue Session' : 'Start New Session'}
       </Button>
+
+      {/* Monthly Session Progress */}
+      <Card className="border-border/40 bg-card/50 backdrop-blur overflow-hidden">
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <div className="rounded-lg bg-violet-500/10 p-1.5">
+                <CalendarDays className="h-3.5 w-3.5 text-violet-500" />
+              </div>
+              <span className="text-xs font-medium text-muted-foreground">Session Progress</span>
+            </div>
+            <span className="text-[10px] text-muted-foreground">{monthName}</span>
+          </div>
+          <div className="flex items-end justify-between gap-4">
+            <div>
+              <p className="text-2xl font-bold">
+                <span className="text-violet-400">{completedSessions}</span>
+                <span className="text-muted-foreground text-base font-normal"> / {expectedSessions}</span>
+              </p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">
+                Mon · Wed · Fri schedule
+              </p>
+            </div>
+            <div className="flex flex-col items-end gap-1">
+              {/* Circular progress ring */}
+              <div className="relative h-12 w-12">
+                <svg className="h-12 w-12 -rotate-90" viewBox="0 0 36 36">
+                  <circle
+                    cx="18" cy="18" r="15"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="3"
+                    className="text-muted/20"
+                  />
+                  <circle
+                    cx="18" cy="18" r="15"
+                    fill="none"
+                    stroke="url(#progressGrad)"
+                    strokeWidth="3"
+                    strokeDasharray={`${sessionProgress} ${100 - sessionProgress}`}
+                    strokeLinecap="round"
+                    className="transition-all duration-700"
+                  />
+                  <defs>
+                    <linearGradient id="progressGrad">
+                      <stop offset="0%" stopColor="#8b5cf6" />
+                      <stop offset="100%" stopColor="#06b6d4" />
+                    </linearGradient>
+                  </defs>
+                </svg>
+                <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-violet-400">
+                  {Math.round(sessionProgress)}%
+                </span>
+              </div>
+              <span className="text-[10px] text-muted-foreground">
+                {nextDayLabel === 'Today' ? '🎾 Play today!' : `Next: ${nextDayLabel}`}
+              </span>
+            </div>
+          </div>
+          {/* Progress bar fallback */}
+          <div className="mt-3 h-1.5 w-full rounded-full bg-muted/20 overflow-hidden">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-violet-500 to-cyan-500 transition-all duration-700"
+              style={{ width: `${sessionProgress}%` }}
+            />
+          </div>
+          {avgCostPerSession > 0 && (
+            <p className="text-[10px] text-muted-foreground mt-2">
+              Avg. cost per session: <span className="text-foreground font-medium">{formatVND(avgCostPerSession)}</span>
+            </p>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-2 gap-3">

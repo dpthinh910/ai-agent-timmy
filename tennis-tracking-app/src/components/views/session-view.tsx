@@ -32,6 +32,7 @@ import {
   UserPlus2,
   HandCoins,
   Check,
+  X,
 } from 'lucide-react';
 import type { Member, LedgerEntry } from '@/db/schema';
 
@@ -46,6 +47,7 @@ export function SessionView() {
   const [tipAmount, setTipAmount] = useState('');
   const [selectedMember, setSelectedMember] = useState<number | null>(null);
   const [fineDialog, setFineDialog] = useState(false);
+  const [endDialog, setEndDialog] = useState(false);
   const [mounted, setMounted] = useState(false);
 
   const loadData = useCallback(() => {
@@ -87,9 +89,17 @@ export function SessionView() {
     setSessionsRefresh(r => r + 1);
   };
 
-  const handleEndSession = () => {
+  /** User clicks "End" → open the end-session dialog (tip prompt) */
+  const handleRequestEnd = () => {
+    setTipAmount('');
+    setEndDialog(true);
+  };
+
+  /** Finalize the session: record court fee, optional tip, then close */
+  const handleConfirmEnd = (includeTip: boolean) => {
     if (!session.sessionId) return;
-    // Add court fee as expense split
+
+    // Record court fee as expense
     if (session.courtFee > 0 && session.attendees.length > 0) {
       addLedgerEntry({
         sessionId: session.sessionId,
@@ -99,6 +109,21 @@ export function SessionView() {
         note: `Court fee split among ${session.attendees.length} attendees`,
       });
     }
+
+    // Record tip if provided
+    if (includeTip && tipAmount) {
+      const amount = parseInt(tipAmount);
+      if (!isNaN(amount) && amount > 0) {
+        addLedgerEntry({
+          sessionId: session.sessionId,
+          memberId: null,
+          amount,
+          type: 'TIP',
+          note: 'Tip for ball kid',
+        });
+      }
+    }
+
     endSession(session.sessionId);
     setSession({
       sessionId: null,
@@ -108,6 +133,8 @@ export function SessionView() {
       isActive: false,
     });
     setSessionEntries([]);
+    setTipAmount('');
+    setEndDialog(false);
     setLedgerRefresh(r => r + 1);
     setSessionsRefresh(r => r + 1);
   };
@@ -146,22 +173,6 @@ export function SessionView() {
       note: 'Guest fee collected',
     });
     setSessionEntries(getLedgerBySession(session.sessionId));
-    setLedgerRefresh(r => r + 1);
-  };
-
-  const handleTip = () => {
-    if (!session.sessionId || !tipAmount) return;
-    const amount = parseInt(tipAmount);
-    if (isNaN(amount) || amount <= 0) return;
-    addLedgerEntry({
-      sessionId: session.sessionId,
-      memberId: null,
-      amount,
-      type: 'TIP',
-      note: 'Tip for ball kid',
-    });
-    setSessionEntries(getLedgerBySession(session.sessionId));
-    setTipAmount('');
     setLedgerRefresh(r => r + 1);
   };
 
@@ -217,7 +228,7 @@ export function SessionView() {
         <Button
           variant="outline"
           size="sm"
-          onClick={handleEndSession}
+          onClick={handleRequestEnd}
           className="gap-1.5 border-rose-500/30 text-rose-500 hover:bg-rose-500/10 hover:text-rose-500"
         >
           <StopCircle className="h-4 w-4" />
@@ -305,30 +316,6 @@ export function SessionView() {
         </Button>
       </div>
 
-      {/* Tip Ball Kid */}
-      <Card className="border-border/40 bg-card/50 backdrop-blur">
-        <CardContent className="p-3">
-          <div className="flex items-center gap-2">
-            <HandCoins className="h-4 w-4 text-emerald-500 shrink-0" />
-            <Input
-              type="number"
-              placeholder="Tip ball kid (VND)"
-              value={tipAmount}
-              onChange={e => setTipAmount(e.target.value)}
-              className="h-9"
-            />
-            <Button
-              size="sm"
-              onClick={handleTip}
-              disabled={!tipAmount}
-              className="bg-emerald-500 hover:bg-emerald-600 text-white border-0 shrink-0"
-            >
-              Tip
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Momo QR */}
       <div className="flex justify-center">
         <MomoQRModal amount={AMOUNTS.LOST_BALL} />
@@ -362,6 +349,52 @@ export function SessionView() {
           </CardContent>
         </Card>
       )}
+
+      {/* ====== End Session Dialog (Tip Prompt) ====== */}
+      <Dialog open={endDialog} onOpenChange={setEndDialog}>
+        <DialogContent className="sm:max-w-[360px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <HandCoins className="h-5 w-5 text-emerald-500" />
+              End Session
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <p className="text-sm text-muted-foreground">
+              Would you like to tip the ball kid before ending the session?
+            </p>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Tip Amount (VND)</label>
+              <Input
+                type="number"
+                placeholder="e.g. 50000"
+                value={tipAmount}
+                onChange={e => setTipAmount(e.target.value)}
+                autoFocus
+              />
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <Button
+                variant="outline"
+                className="flex-1 gap-1.5"
+                onClick={() => handleConfirmEnd(false)}
+              >
+                <X className="h-4 w-4" />
+                Skip & End
+              </Button>
+              <Button
+                className="flex-1 gap-1.5 bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600 text-white border-0"
+                onClick={() => handleConfirmEnd(true)}
+                disabled={!tipAmount || parseInt(tipAmount) <= 0}
+              >
+                <HandCoins className="h-4 w-4" />
+                Tip & End
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
