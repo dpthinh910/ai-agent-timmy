@@ -33,17 +33,13 @@ When you resume, provide these pending requirements to the AI agent to pick up e
 - Verify `npx cap sync ios` works smoothly and open it in Xcode.
 - Tie the `Haptics.impact({ style: ImpactStyle.Heavy })` from Capacitor to the Momo QR payment button.
 
-### 4. Webview Deployment & Cloud Sync (New Request)
-**Requirement:** The app needs to be shareable via a web link so others can view it.
-**Technical Considerations to Implement:**
-Currently, the app stores data **locally** on the device (localStorage on web, SQLite on iOS). If you deploy it to the web (e.g., via Vercel) right now, anyone opening the link will see an empty, local version of the app.
-To share *your specific club's data* with others, we need to transition to a cloud model or sync model:
-- **Option A (Cloud-First):** Replace the local database with a cloud database (like Supabase, Firebase, or Turso). The app talks to the cloud, so everyone sees the same data. We would also need to add basic Authentication (so members get a "View Only" role, and you keep an "Admin" role).
-- **Option B (Local-First + Cloud Auth-Sync):** Keep the fast local SQLite for your iOS app, but run a background sync to a cloud database that the web version reads from.
-- **Web App PWA Setup:** Add a `manifest.json` and service worker so the web version feels like a real app when others save it to their home screens.
-
-_Note to AI:_ When resuming, start by confirming with the user whether they want "View Only" access for members or just to share the software itself. Then proceed with setting up Vercel + Cloud Database.
+### 4. Web Deployment & Cloud Migration (Supabase)
+**Requirement:** The app needs to be shareable via a web link so others can view the club data in real-time.
+**Implementation Strategy Chosen:** Migrate from Local SQLite to **Supabase (Option A)**.
+- Swap out the local storage/SQLite database layer for a remote Supabase Postgres database using Drizzle ORM.
+- Deploy the web version to Vercel for free hosting.
+- Implement basic Authentication: You get an "Admin" login to modify data, while the public can view the dashboard and attendance in a read-only state.
 
 ## How to Resume
 Simply copy the text below and paste it to the AI tomorrow:
-> "Hello! Let's resume work from `RESUME.md` inside `ai-agent-timmy/tennis-tracking-app`. I need you to implement point 1 (Mon/Wed/Fri monthly total calculations) and point 2 (moving the tip prompt to the End Session flow). After that, let's discuss strategy for point 4 (Webview sharing)."
+> "Hello! Let's resume work from `RESUME.md` inside `ai-agent-timmy/tennis-tracking-app`. I need you to implement point 1 (Mon/Wed/Fri monthly total calculations) and point 2 (moving the tip prompt to the End Session flow). After that, let's start point 4: migrating our database to Supabase and deploying to Vercel so we can share the app."
