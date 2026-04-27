@@ -14,6 +14,9 @@ import {
   getCompletedSessionsInMonth,
   isSessionDay,
   getNextSessionDayLabel,
+  MONTHLY_COSTS,
+  TOTAL_MONTHLY_FIXED,
+  getPerSessionCost,
 } from '@/lib/finance';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -28,6 +31,7 @@ import {
   ArrowDownRight,
   Activity,
   CalendarDays,
+  DollarSign,
 } from 'lucide-react';
 import type { LedgerEntry, Session } from '@/db/schema';
 
@@ -67,6 +71,7 @@ export function DashboardView() {
   const sessionDayToday = isSessionDay(now);
   const nextDayLabel = getNextSessionDayLabel(now);
   const avgCostPerSession = completedSessions > 0 ? Math.round(expenses / completedSessions) : 0;
+  const perSessionCost = getPerSessionCost(now.getFullYear(), now.getMonth());
 
   const monthName = now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
@@ -177,6 +182,38 @@ export function DashboardView() {
               Avg. cost per session: <span className="text-foreground font-medium">{formatVND(avgCostPerSession)}</span>
             </p>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Monthly Cost Breakdown */}
+      <Card className="border-border/40 bg-card/50 backdrop-blur">
+        <CardContent className="p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="rounded-lg bg-amber-500/10 p-1.5">
+              <DollarSign className="h-3.5 w-3.5 text-amber-500" />
+            </div>
+            <span className="text-xs font-medium text-muted-foreground">Monthly Fixed Costs</span>
+            <span className="text-[10px] text-muted-foreground ml-auto">{monthName}</span>
+          </div>
+          <div className="space-y-2 text-xs">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Court rental</span>
+              <span className="font-medium">{formatVND(MONTHLY_COSTS.COURT_RENTAL)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Tennis balls</span>
+              <span className="font-medium">{formatVND(MONTHLY_COSTS.BALL_BUDGET)}</span>
+            </div>
+            <div className="h-px bg-border/50 my-1" />
+            <div className="flex justify-between font-semibold">
+              <span>Total monthly</span>
+              <span className="text-amber-500">{formatVND(TOTAL_MONTHLY_FIXED)}</span>
+            </div>
+            <div className="flex justify-between text-muted-foreground">
+              <span>÷ {expectedSessions} sessions</span>
+              <span className="text-foreground font-medium">{formatVND(perSessionCost)} / session</span>
+            </div>
+          </div>
         </CardContent>
       </Card>
 

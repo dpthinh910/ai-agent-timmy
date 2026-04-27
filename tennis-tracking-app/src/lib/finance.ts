@@ -53,9 +53,41 @@ export function getCurrentMonthEntries(entries: LedgerEntry[]): LedgerEntry[] {
  * Common transaction amounts
  */
 export const AMOUNTS = {
-  LOST_BALL: 20_000,   // 20,000 VND
-  GUEST_FEE: 100_000,  // 100,000 VND
+  LOST_BALL: 20_000,       // 20,000 VND
+  GUEST_FEE: 100_000,      // 100,000 VND
 } as const;
+
+// ============ MONTHLY FIXED COSTS ============
+
+/**
+ * Monthly fixed costs for the tennis club.
+ * These are split across all sessions in the month.
+ * Reference: May 2025 = 14,040,000₫ court + 3,000,000₫ balls
+ */
+export const MONTHLY_COSTS = {
+  COURT_RENTAL: 14_040_000,   // Monthly court rental (VND)
+  BALL_BUDGET:   3_000_000,   // Monthly tennis ball expense (VND)
+} as const;
+
+export const TOTAL_MONTHLY_FIXED = MONTHLY_COSTS.COURT_RENTAL + MONTHLY_COSTS.BALL_BUDGET;
+
+/**
+ * Calculate the per-session cost for a given month.
+ * Splits total monthly fixed costs evenly across all expected Mon/Wed/Fri sessions.
+ */
+export function getPerSessionCost(year: number, month: number): number {
+  const expected = getExpectedSessionsInMonth(year, month);
+  if (expected === 0) return 0;
+  return Math.round(TOTAL_MONTHLY_FIXED / expected);
+}
+
+/**
+ * Calculate the per-person cost for a single session given the number of attendees.
+ */
+export function getPerPersonCost(year: number, month: number, attendees: number): number {
+  if (attendees === 0) return 0;
+  return Math.round(getPerSessionCost(year, month) / attendees);
+}
 
 // ============ SESSION SCHEDULE (Mon / Wed / Fri) ============
 

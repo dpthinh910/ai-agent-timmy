@@ -16,7 +16,7 @@ import {
   addLedgerEntry,
   getLedgerBySession,
 } from '@/db/client';
-import { formatVND, AMOUNTS } from '@/lib/finance';
+import { formatVND, AMOUNTS, getPerSessionCost, getPerPersonCost } from '@/lib/finance';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -33,6 +33,8 @@ import {
   HandCoins,
   Check,
   X,
+  DollarSign,
+  Users,
 } from 'lucide-react';
 import type { Member, LedgerEntry } from '@/db/schema';
 
@@ -45,8 +47,11 @@ export function SessionView() {
   const [sessionEntries, setSessionEntries] = useState<LedgerEntry[]>([]);
   const [courtFee, setCourtFee] = useState('');
   const [tipAmount, setTipAmount] = useState('');
+  const [ballKidName, setBallKidName] = useState('');
+  const [guestName, setGuestName] = useState('');
   const [selectedMember, setSelectedMember] = useState<number | null>(null);
   const [fineDialog, setFineDialog] = useState(false);
+  const [guestDialog, setGuestDialog] = useState(false);
   const [endDialog, setEndDialog] = useState(false);
   const [mounted, setMounted] = useState(false);
 
@@ -72,6 +77,10 @@ export function SessionView() {
 
   if (!mounted) return null;
 
+  const now = new Date();
+  const perSessionCost = getPerSessionCost(now.getFullYear(), now.getMonth());
+  const perPersonCost = getPerPersonCost(now.getFullYear(), now.getMonth(), session.attendees.length);
+
   const handleStartSession = () => {
     const fee = parseInt(courtFee) || 0;
     const newSession = createSession({
@@ -92,6 +101,7 @@ export function SessionView() {
   /** User clicks "End" → open the end-session dialog (tip prompt) */
   const handleRequestEnd = () => {
     setTipAmount('');
+    setBallKidName('');
     setEndDialog(true);
   };
 
@@ -114,12 +124,13 @@ export function SessionView() {
     if (includeTip && tipAmount) {
       const amount = parseInt(tipAmount);
       if (!isNaN(amount) && amount > 0) {
+        const kidLabel = ballKidName.trim() || 'Ball kid';
         addLedgerEntry({
           sessionId: session.sessionId,
           memberId: null,
           amount,
           type: 'TIP',
-          note: 'Tip for ball kid',
+          note: `Tip for ${kidLabel}`,
         });
       }
     }
@@ -134,6 +145,7 @@ export function SessionView() {
     });
     setSessionEntries([]);
     setTipAmount('');
+    setBallKidName('');
     setEndDialog(false);
     setLedgerRefresh(r => r + 1);
     setSessionsRefresh(r => r + 1);
@@ -155,7 +167,7 @@ export function SessionView() {
       memberId,
       amount: AMOUNTS.LOST_BALL,
       type: 'FINE',
-      note: `Lost ball - ${memberName}`,
+      note: `Lost ball — ${memberName}`,
     });
     setSessionEntries(getLedgerBySession(session.sessionId));
     setLedgerRefresh(r => r + 1);
@@ -163,17 +175,20 @@ export function SessionView() {
     setSelectedMember(null);
   };
 
-  const handleGuestFee = () => {
+  const handleAddGuest = () => {
     if (!session.sessionId) return;
+    const name = guestName.trim() || 'Guest';
     addLedgerEntry({
       sessionId: session.sessionId,
       memberId: null,
       amount: AMOUNTS.GUEST_FEE,
       type: 'GUEST_FEE',
-      note: 'Guest fee collected',
+      note: `Guest fee — ${name}`,
     });
     setSessionEntries(getLedgerBySession(session.sessionId));
     setLedgerRefresh(r => r + 1);
+    setGuestName('');
+    setGuestDialog(false);
   };
 
   if (!session.isActive) {
@@ -201,6 +216,21 @@ export function SessionView() {
                 Will be recorded as an expense when the session ends
               </p>
             </div>
+
+            {/* Per-session cost info */}
+            <div className="rounded-lg border border-violet-500/20 bg-violet-500/5 p-3 space-y-1">
+              <div className="flex items-center gap-2 text-xs font-medium text-violet-400">
+                <DollarSign className="h-3.5 w-3.5" />
+                Monthly Cost Breakdown
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Fixed cost per session: <span className="text-foreground font-semibold">{formatVND(perSessionCost)}</span>
+              </p>
+              <p className="text-[10px] text-muted-foreground">
+                Court rental + balls split across {now.toLocaleDateString('en-US', { month: 'long' })} sessions
+              </p>
+            </div>
+
             <Button
               onClick={handleStartSession}
               className="w-full h-12 bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600 text-white font-semibold text-base shadow-lg shadow-emerald-500/25 transition-all duration-200 active:scale-[0.98] border-0"
@@ -234,6 +264,22 @@ export function SessionView() {
           <StopCircle className="h-4 w-4" />
           End
         </Button>
+      </div>
+
+      {/* Per-session cost banner */}
+      <div className="rounded-lg border border-violet-500/20 bg-violet-500/5 p-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <DollarSign className="h-3.5 w-3.5 text-violet-400" />
+            Session cost: <span className="text-foreground font-semibold">{formatVND(perSessionCost)}</span>
+          </div>
+          {session.attendees.length > 0 && (
+            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+              <Users className="h-3 w-3 text-violet-400" />
+              Per person: <span className="text-foreground font-semibold">{formatVND(perPersonCost)}</span>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Attendance */}
@@ -272,6 +318,7 @@ export function SessionView() {
 
       {/* Quick Actions */}
       <div className="grid grid-cols-2 gap-3">
+        {/* Lost Ball */}
         <Dialog open={fineDialog} onOpenChange={setFineDialog}>
           <DialogTrigger
             render={
@@ -302,18 +349,56 @@ export function SessionView() {
                   {member.name}
                 </Button>
               ))}
+              {members.filter(m => session.attendees.includes(m.id)).length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-2">
+                  Mark attendees first
+                </p>
+              )}
             </div>
           </DialogContent>
         </Dialog>
 
-        <Button
-          variant="outline"
-          className="h-16 flex-col gap-1 border-blue-500/30 text-blue-500 hover:bg-blue-500/10 hover:text-blue-500"
-          onClick={handleGuestFee}
-        >
-          <UserPlus2 className="h-5 w-5" />
-          <span className="text-xs">Guest Fee ({formatVND(AMOUNTS.GUEST_FEE)})</span>
-        </Button>
+        {/* Guest Fee */}
+        <Dialog open={guestDialog} onOpenChange={setGuestDialog}>
+          <DialogTrigger
+            render={
+              <Button
+                variant="outline"
+                className="h-16 flex-col gap-1 border-blue-500/30 text-blue-500 hover:bg-blue-500/10 hover:text-blue-500"
+              />
+            }
+          >
+            <UserPlus2 className="h-5 w-5" />
+            <span className="text-xs">Guest Fee ({formatVND(AMOUNTS.GUEST_FEE)})</span>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-[340px]">
+            <DialogHeader>
+              <DialogTitle>Add Guest</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 pt-2">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Guest Name</label>
+                <Input
+                  placeholder="e.g. Minh, Hoa..."
+                  value={guestName}
+                  onChange={e => setGuestName(e.target.value)}
+                  autoFocus
+                />
+              </div>
+              <div className="flex items-center justify-between text-sm text-muted-foreground">
+                <span>Fee</span>
+                <span className="font-semibold text-foreground">{formatVND(AMOUNTS.GUEST_FEE)}</span>
+              </div>
+              <Button
+                className="w-full bg-blue-500 hover:bg-blue-600 text-white border-0"
+                onClick={handleAddGuest}
+              >
+                <UserPlus2 className="h-4 w-4 mr-2" />
+                Add Guest & Charge Fee
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {/* Momo QR */}
@@ -363,6 +448,17 @@ export function SessionView() {
             <p className="text-sm text-muted-foreground">
               Would you like to tip the ball kid before ending the session?
             </p>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Ball Kid Name</label>
+              <Input
+                placeholder="e.g. Tú, Hùng..."
+                value={ballKidName}
+                onChange={e => setBallKidName(e.target.value)}
+                autoFocus
+              />
+            </div>
+
             <div className="space-y-2">
               <label className="text-sm font-medium">Tip Amount (VND)</label>
               <Input
@@ -370,8 +466,31 @@ export function SessionView() {
                 placeholder="e.g. 50000"
                 value={tipAmount}
                 onChange={e => setTipAmount(e.target.value)}
-                autoFocus
               />
+            </div>
+
+            {/* Session summary before ending */}
+            <div className="rounded-lg border border-border/30 bg-background/50 p-3 space-y-1.5 text-xs">
+              <div className="flex justify-between text-muted-foreground">
+                <span>Attendees</span>
+                <span className="text-foreground font-medium">{session.attendees.length}</span>
+              </div>
+              <div className="flex justify-between text-muted-foreground">
+                <span>Session cost</span>
+                <span className="text-foreground font-medium">{formatVND(perSessionCost)}</span>
+              </div>
+              {session.attendees.length > 0 && (
+                <div className="flex justify-between text-muted-foreground">
+                  <span>Per person</span>
+                  <span className="text-violet-400 font-semibold">{formatVND(perPersonCost)}</span>
+                </div>
+              )}
+              <div className="flex justify-between text-muted-foreground">
+                <span>Fines collected</span>
+                <span className="text-emerald-500 font-medium">
+                  {formatVND(sessionEntries.filter(e => e.type === 'FINE').reduce((s, e) => s + e.amount, 0))}
+                </span>
+              </div>
             </div>
 
             <div className="flex gap-2 pt-2">
